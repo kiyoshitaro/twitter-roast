@@ -1,35 +1,26 @@
-import { OPENAI_API_KEY, GITHUB_API_KEY } from '$env/static/private';
+import { OPENAI_API_KEY, RAPID_API_KEY } from '$env/static/private';
 import OpenAI from 'openai';
 import { json } from '@sveltejs/kit';
 
 const client = new OpenAI({
 	apiKey: OPENAI_API_KEY
 });
-
-let headers = {
-	Accept: 'application/json',
-	'Content-Type': 'application/json',
-	'User-Agent': 'github-roast.pages.dev'
+const options = {
+	method: "GET",
+	headers: {
+	"x-rapidapi-key": RAPID_API_KEY,
+	"x-rapidapi-host": "twitter283.p.rapidapi.com",
+	},
 };
 
 const validLanguages = [
 	'english',
-	'indonesian',
-	'indian',
-	'chinese',
-	'japanese',
-	'korean',
-	'france',
-	'polish',
 	'vietnamese',
-	'arabic',
-	'traditionalChinese'
 ];
 
 export async function POST({ request, platform }) {
-	let answerdebug = '';
+	
 	const { username, language } = await request.json();
-
 	if (!validLanguages.includes(language)) {
 		return json(
 			{ error: 'invalid language specified, please pass a valid language.' },
@@ -37,164 +28,163 @@ export async function POST({ request, platform }) {
 		);
 	}
 
-	if (GITHUB_API_KEY) {
-		headers['Authorization'] = `token ${GITHUB_API_KEY}`;
-	}
-
-	var profileResponse = { status: 403 };
-	var useToken = false;
-
-	// Check if the token is not rate-limited
-	try {
-		let response = await fetch(`https://api.github.com/users/${username}`, {
-			headers: headers
-		});
-		profileResponse = await response.json();
-		if (response.ok) {
-			useToken = true;
-		} else {
-			return json({ error: 'Our roast machine is in trouble' }, { status: 500 });
-		}
-	} catch (err) {
-		console.log(err);
-		let response = await fetch(`https://api.github.com/users/${username}`, { headers });
-		profileResponse = await response.json();
-	}
-
-	// If token is rate-limited, fall back to no token
-	if (!useToken) {
-		delete headers['Authorization'];
-	}
-
-	let response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated`, {
-		headers: headers
-	});
-	const repoResponse = await response.json();
-
-	let readmeResponse;
-	try {
-		response = await fetch(
-			`https://raw.githubusercontent.com/${username}/${username}/main/README.md`,
-			{ headers: headers }
+	const getRest = await fetch(
+		`https://twitter283.p.rapidapi.com/UsernameToUserId?username=${username}`,
+		options
+	);
+	const rest_id = (await getRest.json())?.id_str;
+	if(!rest_id){
+		return json(
+			{ error: 'Not found twitter user' },
+			{ status: 400 }
 		);
-		if (response.ok) {
-			readmeResponse = await response.text();
+	}
+	
+	const response = await fetch(`https://twitter283.p.rapidapi.com/UserTweets?user_id=${rest_id}`, options);
+	const result = await response.json();
+	let userInfo;
+	let pinTweet;
+	let tweets = [];
+	for (const _t of result?.data?.user_result_by_rest_id?.result
+		?.profile_timeline_v2?.timeline?.instructions) {
+		if (_t?.__typename === "TimelinePinEntry") {
+		const _pintweet =
+			_t?.entry?.content?.content?.tweet_results?.result?.legacy;
+		const _userinfo =
+			_t?.entry?.content?.content?.tweet_results?.result?.core?.user_results
+			?.result;
+		userInfo = {
+			username: _userinfo?.core?.name,
+			created_at: _userinfo?.core?.created_at,
+			// screen_name: _userinfo?.core?.screen_name,
+			location: _userinfo?.location?.location,
+			bio: _userinfo?.profile_bio?.description,
+			followers: _userinfo?.relationship_counts?.followers,
+			following: _userinfo?.relationship_counts?.following,
+			num_of_tweets: Number(_userinfo?.tweet_counts?.tweets),
+			// rest_id: _userinfo?.rest_id,
+			is_blue_verified: _userinfo?.verification?.is_blue_verified,
+			verified_type: _userinfo?.verification?.verified_type,
+		};
+		pinTweet = {
+			content: _pintweet?.full_text,
+			rest_id: _t?.entry?.content?.content?.tweet_results?.result?.rest_id,
+			reply_count: _pintweet?.reply_count,
+			retweet_count: _pintweet?.retweet_count,
+			favorite_count: _pintweet?.favorite_count,
+			created_at: _pintweet?.created_at,
+		};
 		}
-	} catch (error) {
-		console.log(error);
-		try {
-			response = await fetch(
-				`https://raw.githubusercontent.com/${username}/${username}/master/README.md`,
-				{ headers: headers }
+		if (_t?.__typename === "TimelineAddEntries") {
+		console.log(
+			_t?.entries.slice(0, _t?.entries.length - 2).length,
+			"ss",
+			_t?.entries.length
+		);
+		let cntGetReply = 0;
+		for (const _tw of _t?.entries.slice(0, _t?.entries.length - 2)) {
+			const _tweet =
+			_tw?.content?.content?.tweet_results?.result?.__typename === "Tweet"
+				? _tw?.content?.content?.tweet_results?.result
+				: _tw?.content?.content?.tweet_results?.result?.tweet;
+			const _twLegacy = _tweet?.legacy;
+			const content = _twLegacy?.full_text
+			.replace(/(?:https?|ftp):\/\/[\n\S]+/g, "")
+			.replace(/@/g, "");
+			if (
+			_tweet?.rest_id &&
+			(!_twLegacy?.retweeted_status_results ||
+				(Object.keys(_twLegacy?.retweeted_status_results).length === 0 &&
+				content.split(" ").length > 10)) &&
+			cntGetReply < 6
+			) {
+			cntGetReply += 1;
+			console.log("Loading ===== ", _tweet?.rest_id);
+			let replies = [];
+			const _response = await fetch(
+				`https://twitter283.p.rapidapi.com/TweetDetailConversation?tweet_id=${_tweet?.rest_id}`,
+				options
 			);
-			// answerdebug += (await response.text()) + ' 4\n';
-			if (response.ok) {
-				readmeResponse = await response.text();
+			const _result = await _response.json();
+			for (const _rp of _result?.data
+				?.threaded_conversation_with_injections_v2?.instructions[0]
+				?.entries) {
+				const _rrp =
+				_rp?.content?.__typename === "TimelineTimelineItem"
+					? _rp?.content?.content?.tweet_results?.result
+					: _rp?.content?.items?.[0]?.item?.content?.tweet_results
+						?.result;
+				const contentRep = _rrp?.legacy?.full_text
+				.replace(/(?:https?|ftp):\/\/[\n\S]+/g, "")
+				.replace(/@/g, "");
+				if (contentRep?.split(" ").length > 10) {
+				replies.push({
+					content: contentRep,
+					username: _rrp?.core?.user_results?.result?.core?.name,
+				});
+				}
 			}
-		} catch (error) {
-			console.log(error);
-			console.log('failed to get readme');
-			readmeResponse = '';
+			tweets.push({
+				// rest_id: _tweet?.rest_id,
+				content: content,
+				reply_count: _twLegacy?.reply_count,
+				retweet_count: _twLegacy?.retweet_count,
+				favorite_count: _twLegacy?.favorite_count,
+				created_at: _twLegacy?.created_at,
+				comments: replies,
+			});
+			}
+		}
 		}
 	}
 
-	// https://github.com/bagusindrayana/roastgithub-api/blob/master/index.js
-	const datas = {
-		name: profileResponse.name,
-		bio: profileResponse.bio,
-		company: profileResponse.company,
-		location: profileResponse.location,
-		followers: profileResponse.followers,
-		following: profileResponse.following,
-		public_repos: profileResponse.public_repos,
-		profile_readme: readmeResponse,
-		last_15_repositories: repoResponse
-			.map((repo) => ({
-				name: repo.name,
-				description: repo.description,
-				language: repo.language,
-				stargazers_count: repo.stargazers_count,
-				open_issues_count: repo.open_issues_count,
-				license: repo.license,
-				fork: repo.fork
-			}))
-			.slice(0, 15)
-	};
-
-	let prompt = `give a short and harsh roasting for the following github profile: ${username}. Here are the details: "${JSON.stringify(datas)}"`;
+	let prompt = `give a short and harsh roasting for the following Twitter profile: ${userInfo?.username}. Here are the details: "${JSON.stringify(userInfo)}" with recent posts and comments "${JSON.stringify(tweets)}"`;
 	switch (language) {
-		case 'indonesian':
-			prompt = `gunakan bahasa indonesia yang normal seperti manusia gaul, berikan roasting singkat dengan kejam dan menyindir dalam bahasa gaul untuk profile github berikut : ${username}. Berikut detailnya: "${JSON.stringify(datas)}"`;
-			break;
-		case 'indian':
-			prompt = `इस गिटहब प्रोफाइल के लिए एक क्रूर और व्यंग्यात्मक रोस्टिंग गली भाषा में दें: ${username}। विवरण इस प्रकार है: "${JSON.stringify(datas)}"`;
-			break;
-		case 'chinese':
-			prompt = `用中文俚语对以下GitHub个人资料进行短暂而残酷的讽刺：${username}。以下是详细信息: "${JSON.stringify(datas)}"`;
-			break;
-		case 'japanese':
-			prompt = `以下のGitHubプロフィールに対して残酷で皮肉な短いローストをギャル語でしてください: ${username}。詳細は次の通りです: "${JSON.stringify(datas)}"`;
-			break;
-		case 'korean':
-			prompt = `다음 GitHub 프로필에 대해 잔인하고 비꼬는 짧은 로스팅을 속어로 해주세요: ${username}. 자세한 내용은 다음과 같습니다: "${JSON.stringify(datas)}"`;
-			break;
-		case 'france':
-			prompt = `fais une courte et cruelle critique sarcastique en argot pour le profil GitHub suivant : ${username}. Voici les détails : "${JSON.stringify(datas)}"`;
-			break;
-		case 'german':
-			prompt = `machen sie eine grausame, kurze, harte und sarkastische Röstung auf Deutsch und verwenden Sie Wortspiele und Slang, um Humor in das folgende Github-Profil zu bringen : ${username}. Hier sind die Details : "${JSON.stringify(datas)}"`;
-			break;
-		case 'arabic':
-			prompt = `.${JSON.stringify(datas)}: اليك هذه التفصيل .${username} :(GitHub) قدم سخرية قصيرة و قاصية على الملف الشخصي في`;
-		case 'italian':
-			prompt = `Criticami in modo sarcastico il seguente profilo GitHub: ${username}. Ecco alcuni dettagli: "${JSON.stringify(datas)}"`;
-			break;
-		case 'polish':
-			prompt = `krótko i ostro skrytykuj poniższy profil GitHub: ${username}. Oto szczegóły: "${JSON.stringify(datas)}"`;
-			break;
 		case 'vietnamese':
-			prompt = `Hãy đưa ra một lời châm chọc ngắn gọn và tàn nhẫn bằng tiếng lóng cho hồ sơ GitHub sau: ${username}. Đây là chi tiết: "${JSON.stringify(datas)}"`;
+			prompt = `Hãy đưa ra một lời châm chọc ngắn gọn và tàn nhẫn bằng tiếng lóng cho hồ sơ Twitter sau: ${
+    userInfo?.username
+  }. Đây là thông tin chi tiết: "${JSON.stringify(
+    userInfo
+  )}", với các bài viết gần nhất cùng các bình luận "${JSON.stringify(tweets)}"`;
 			break;
-		case 'finnish':
-			prompt = `Kirjoita lyhyt, julma ja sarkastinen arvostelu slangilla seuraavalle Github-profiilille: ${username}. Tässä on profiilin yksityiskohdat: "${JSON.stringify(datas)}"`;
-			break;
-		case 'portuguese':
-			prompt = `faça uma crítica curta e dura para o seguinte perfil do github: ${username}. Aqui estão os detalhes: "${JSON.stringify(datas)}"`;
-			break;
-		case 'traditionalChinese':
-			prompt = `請用正體中文及道地台灣俗語，對這個 GitHub 帳號殘酷地吐槽一番：${username}。以下是這個帳號的詳細資訊: "${JSON.stringify(datas)}"`;
+	}
+
+	let systemPrompt = "You roast people twitter account based on bio information, username, verify, carefully analyze the last posts with comments to see how the community thinks and include the sarcasm as harshly and poignantly as possible, with 100 - 150 words."
+	switch (language) {
+		case 'vietnamese':
+			systemPrompt = "Bạn hãy châm chọc tài khoản twitter của mọi người dựa trên thông tin bio, username, verify, phân tích kỹ các bài đăng cuối cùng kèm bình luận xem cộng đồng đánh giá thế nào và đưa vào câu châm biếm một cách gay gắt và cay nhất có thể, với 100 - 150 từ";
 			break;
 	}
 
 	// answerdebug += prompt + '\n';
 	try {
 		const completion = await client.chat.completions.create({
-			model: 'gpt-4o',
+			model: 'gpt-4o-mini',
 			stream: false,
 			messages: [
 				{
 					role: 'system',
-					content:
-						'You roast people github account based on their bio, name, readme, and repos as harsh and spicy as possible, and keep it short.'
+					content: systemPrompt,
 				},
 				{ role: 'user', content: prompt }
 			]
 		});
 
 		const roast = completion.choices[0].message.content;
-		try {
-			await platform.env.DB.prepare(
-				'INSERT INTO roasts (gh_username, response, created_at, country, ip_address) VALUES (?, ?, ?, ?, ?)'
-			)
-				.bind(
-					username,
-					roast,
-					Math.floor(new Date().getTime() / 1000),
-					request?.cf?.country || '',
-					sha256(request.headers.get('cf-connecting-ip')) || ''
-				)
-				.run();
-		} catch {}
+		// try {
+		// 	await platform.env.DB.prepare(
+		// 		'INSERT INTO roasts (gh_username, response, created_at, country, ip_address) VALUES (?, ?, ?, ?, ?)'
+		// 	)
+		// 		.bind(
+		// 			username,
+		// 			roast,
+		// 			Math.floor(new Date().getTime() / 1000),
+		// 			request?.cf?.country || '',
+		// 			sha256(request.headers.get('cf-connecting-ip')) || ''
+		// 		)
+		// 		.run();
+		// } catch {}
+		console.log(roast);
 		return json({ roast });
 	} catch (error) {
 		console.error('Error:', error);
@@ -202,10 +192,10 @@ export async function POST({ request, platform }) {
 	}
 }
 
-function sha256(str) {
-	// Get the string as arraybuffer.
-	var buffer = new TextEncoder('utf-8').encode(str);
-	return crypto.subtle.digest('SHA-256', buffer).then(function (hash) {
-		return hex(hash);
-	});
-}
+// function sha256(str) {
+// 	// Get the string as arraybuffer.
+// 	var buffer = new TextEncoder('utf-8').encode(str);
+// 	return crypto.subtle.digest('SHA-256', buffer).then(function (hash) {
+// 		return hex(hash);
+// 	});
+// }

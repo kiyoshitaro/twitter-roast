@@ -12,19 +12,7 @@
 	const languages = [
 		{ value: 'english', label: 'English' },
 		{ value: 'france', label: 'France' },
-		{ value: 'italian', label: 'Italian' },
-		{ value: 'indonesian', label: 'Indonesian' },
-		{ value: 'indian', label: 'Hindi' },
-		{ value: 'korean', label: 'Korean' },
-		{ value: 'japanese', label: 'Japanese' },
-		{ value: 'chinese', label: 'Chinese' },
-		{ value: 'german', label: 'German' },
-		{ value: 'arabic', label: 'Arabic' },
-		{ value: 'vietnamese', label: 'Vietnamese' },
-		{ value: 'finnish', label: 'Finnish' },
-		{ value: 'portuguese', label: 'Portuguese' },
-		{ value: 'polish', label: 'Polish' },
-		{ value: 'traditionalChinese', label: 'Traditional Chinese' }
+		{ value: 'vietnamese', label: 'Vietnamese' }
 	];
 
 	onMount(() => {
@@ -64,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<title>GitHub Profile Roast 🔥🔥🔥</title>
+	<title>Twitter Profile Roast 🔥🔥🔥</title>
 </svelte:head>
 
 <div class="container mx-auto p-4 max-w-md">
@@ -98,7 +86,7 @@
 		class="w-full bg-purple-500 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-600 transition-colors disabled:bg-purple-300 disabled:cursor-not-allowed"
 		disabled={loading || !username}
 	>
-		{loading ? 'Roasting...' : 'Roast This GitHub!'}
+		{loading ? 'Roasting...' : 'Roast This Twitter!'}
 	</button>
 
 	{#if roast && mounted}
@@ -111,13 +99,12 @@
 	{/if}
 
 	<div class="mt-8 text-center text-sm text-gray-500">
-		<p>&copy; 2024 github-roast.pages.dev</p>
 		<p>
-			Poke <a class="text-blue-500" target="_blank" href="https://x.com/rubi1945">Admin</a> if something
+			Poke <a class="text-blue-500" target="_blank" href="https://x.com/kiyooshi_Taro">Admin</a> if something
 			goes wrong
 		</p>
 		<p>
-			<a class="text-blue-500" target="_blank" href="https://github.com/codenoid/github-roast"
+			<a class="text-blue-500" target="_blank" href="https://github.com/kiyoshitaro/github-roast"
 				>Source code on GitHub</a
 			>
 		</p>
