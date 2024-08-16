@@ -17,6 +17,7 @@
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
 		"@types/eslint": "^9.6.0",
 		"autoprefixer": "^10.4.20",
+		"gh-pages": "^6.1.1",
 		"globals": "^15.0.0",
 		"postcss": "^8.4.40",
 		"prettier": "^3.1.1",
@@ -28,6 +29,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"dotenv": "^16.4.5",
 		"openai": "^4.54.0",
 		"svelte-markdown": "^0.4.1"
 	}

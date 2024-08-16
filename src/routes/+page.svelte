@@ -7,12 +7,12 @@
 	let roast = '';
 	let loading = false;
 	let mounted = false;
-	let selectedLanguage = 'english';
+	let selectedLanguage = 'vietnamese';
 
 	const languages = [
+		{ value: 'vietnamese', label: 'Vietnamese' },
 		{ value: 'english', label: 'English' },
-		{ value: 'france', label: 'France' },
-		{ value: 'vietnamese', label: 'Vietnamese' }
+		{ value: 'france', label: 'France' }
 	];
 
 	onMount(() => {
@@ -56,13 +56,13 @@
 </svelte:head>
 
 <div class="container mx-auto p-4 max-w-md">
-	<h1 class="text-3xl font-bold mb-4 text-center text-purple-600">GitHub Roaster</h1>
+	<h1 class="text-3xl font-bold mb-4 text-center text-purple-600">Twitter Roaster</h1>
 
 	<div class="mb-4">
 		<input
 			type="text"
 			bind:value={username}
-			placeholder="Enter GitHub username"
+			placeholder="Enter Twitter username"
 			class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
 			disabled={loading}
 			on:keydown={handleKeyDown}
