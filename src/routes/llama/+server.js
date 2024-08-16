@@ -84,6 +84,22 @@ export async function POST({ request, platform, ...c }) {
 		// 			_tw?.content?.content?.tweet_results?.result?.__typename === 'Tweet'
 		// 				? _tw?.content?.content?.tweet_results?.result
 		// 				: _tw?.content?.content?.tweet_results?.result?.tweet;
+		// 		if (!userInfo) {
+		// 			const _userinfo = _tweet?.core?.user_results?.result;
+		// 			userInfo = {
+		// 				username: _userinfo?.core?.name,
+		// 				created_at: _userinfo?.core?.created_at,
+		// 				// screen_name: _userinfo?.core?.screen_name,
+		// 				location: _userinfo?.location?.location,
+		// 				bio: _userinfo?.profile_bio?.description,
+		// 				followers: _userinfo?.relationship_counts?.followers,
+		// 				following: _userinfo?.relationship_counts?.following,
+		// 				num_of_tweets: Number(_userinfo?.tweet_counts?.tweets),
+		// 				// rest_id: _userinfo?.rest_id,
+		// 				is_blue_verified: _userinfo?.verification?.is_blue_verified,
+		// 				verified_type: _userinfo?.verification?.verified_type
+		// 			};
+		// 		}
 		// 		const _twLegacy = _tweet?.legacy;
 		// 		const content = _twLegacy?.full_text
 		// 			.replace(/(?:https?|ftp):\/\/[\n\S]+/g, '')
@@ -198,7 +214,6 @@ export async function POST({ request, platform, ...c }) {
 			}
 		}
 	}
-	console.log(tweetsSearch, 'tweetsSearch');
 
 	let prompt = `give a short and harsh roasting for the following Twitter profile: ${userInfo?.username}. Here are the details: "${JSON.stringify(userInfo)}" with recent posts and comments "${JSON.stringify(tweetsSearch)}"`;
 	switch (language) {
@@ -210,6 +225,7 @@ export async function POST({ request, platform, ...c }) {
 			)}", với các bài viết gần nhất cùng các bình luận "${JSON.stringify(tweetsSearch)}"`;
 			break;
 	}
+	console.log(prompt, '=====');
 
 	let systemPrompt =
 		'You roast people twitter account based on bio information, username, verify, carefully analyze the last posts with comments to see how the community thinks and include the sarcasm as harshly and poignantly as possible, with 100 - 150 words.';
